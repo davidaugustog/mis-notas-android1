@@ -1,0 +1,47 @@
+name: Compilar Mis notas APK
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'mis_notas_android_widget_source.zip'
+      - '.github/workflows/build.yml'
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar archivos del repositorio
+        uses: actions/checkout@v4
+      - name: Preparar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Preparar Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Descomprimir proyecto
+        run: |
+          mkdir source
+          unzip -q mis_notas_android_widget_source.zip -d source
+      - name: Instalar dependencias web
+        working-directory: source
+        run: npm install
+      - name: Generar proyecto Android
+        working-directory: source
+        run: npx cap add android
+      - name: Integrar widget nativo
+        working-directory: source
+        run: python3 scripts/integrate_widget.py
+      - name: Compilar APK de prueba
+        working-directory: source/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+      - name: Publicar APK para descargar
+        uses: actions/upload-artifact@v4
+        with:
+          name: mis-notas-apk-debug
+          path: source/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
